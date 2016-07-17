@@ -8,7 +8,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.cory.mariobros.screens.PlayScreen;
 
 /**
- * Created by ASSHAT on 7/17/2016.
+ * Created by Cory Ellenberger on 7/17/2016.
  */
 public class MarioBros extends Game {
 	public static final int V_WIDTH = 400;
