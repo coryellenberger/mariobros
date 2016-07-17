@@ -1,19 +1,21 @@
 package com.cory.mariobros.screens;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
+import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.viewport.FitViewport;
-import com.badlogic.gdx.utils.viewport.ScreenViewport;
-import com.badlogic.gdx.utils.viewport.StretchViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.cory.mariobros.MarioBros;
 import com.cory.mariobros.scenes.Hud;
+import com.cory.mariobros.sprites.Mario;
 
 /**
  * Created by Cory Ellenberger on 7/17/2016.
@@ -30,16 +32,41 @@ public class PlayScreen implements Screen {
     private TiledMap map;
     private OrthogonalTiledMapRenderer renderer;
 
+    // Box2d Variables
+    private World world;
+    private Box2DDebugRenderer b2dr;
+
+    // sprites
+    private Mario player;
+
     public PlayScreen(MarioBros game) {
         this.game = game;
         gameCam = new OrthographicCamera();
-        gamePort = new FitViewport(MarioBros.V_WIDTH, MarioBros.V_HEIGHT, gameCam);
+        gamePort = new FitViewport(MarioBros.V_WIDTH / MarioBros.PPM, MarioBros.V_HEIGHT / MarioBros.PPM, gameCam);
         hud = new Hud(game.batch);
 
         mapLoader = new TmxMapLoader();
         map = mapLoader.load("level1.tmx");
-        renderer = new OrthogonalTiledMapRenderer(map);
+        renderer = new OrthogonalTiledMapRenderer(map, 1 / MarioBros.PPM);
+
         gameCam.position.set(gamePort.getWorldWidth() / 2, gamePort.getWorldHeight() / 2, 0);
+
+        world = new World(new Vector2(0, -10), true);
+        b2dr = new Box2DDebugRenderer();
+
+        // create blocks bodies/fixtures
+        new Fixture(map, world, 2);
+
+        // create pipe bodies/fixtures
+        new Fixture(map, world, 3);
+
+        // create brick bodies/fixtures
+        new Fixture(map, world, 5);
+
+        // create coins bodies/fixtures
+        new Fixture(map, world, 4);
+
+        player = new Mario(world);
     }
 
     @Override
@@ -48,13 +75,21 @@ public class PlayScreen implements Screen {
     }
 
     public void handleInput(float dt) {
-        if(Gdx.input.isTouched()) {
-            gameCam.position.x += 100 * dt;
-        }
+        if(Gdx.input.isKeyJustPressed(Input.Keys.UP))
+            player.b2body.applyLinearImpulse(new Vector2(0, 4f), player.b2body.getWorldCenter(), true);
+
+        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT) && player.b2body.getLinearVelocity().x <= 2)
+            player.b2body.applyLinearImpulse(new Vector2(0.1f, 0), player.b2body.getWorldCenter(), true);
+
+        if (Gdx.input.isKeyPressed(Input.Keys.LEFT) && player.b2body.getLinearVelocity().x <= 2)
+            player.b2body.applyLinearImpulse(new Vector2(-0.1f, 0), player.b2body.getWorldCenter(), true);
+
     }
 
     public void update(float dt) {
         handleInput(dt);
+        world.step(1/60f, 6, 2);
+        gameCam.position.x = player.b2body.getPosition().x;
         gameCam.update();
         renderer.setView(gameCam);
     }
@@ -68,6 +103,8 @@ public class PlayScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         renderer.render();
+
+        b2dr.render(world, gameCam.combined);
 
         game.batch.setProjectionMatrix(hud.stage.getCamera().combined);
         hud.stage.draw();
